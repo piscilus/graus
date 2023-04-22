@@ -1,7 +1,10 @@
 # Generator for Random Alphanumeric Uppercase Strings
 
-GRAUS is a simple program that generates a selectable number of alphanumeric
-strings. The length can be selected as well.
+GRAUS is a simple program that generates a selectable number of pseudo-random
+alphanumeric strings.
+
+- A-Z
+- 0-9
 
 **Examples:**
 
