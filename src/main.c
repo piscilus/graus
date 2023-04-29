@@ -7,13 +7,14 @@
  * See LICENSE file for details or copy at https://opensource.org/licenses/MIT
  */
 
+#include "cargs.h"
+
 #include <assert.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
-#include "cargs.h"
 
 #define VERSION ("0.1.0-alpha.1")
 
