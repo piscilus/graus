@@ -1,20 +1,25 @@
-# Phony targets
-.PHONY: all clean
+.PHONY: all clean debug release
 
 EXECUTABLE = graus
 
 INCLUDES = -I.
 INCLUDES += -Ilib/cargs
 
-SRCDIR = .
-OBJDIR = obj
-BINDIR = bin
-
 SOURCES = main.c
 SOURCES += lib/cargs/cargs.c
-OBJS = $(addprefix $(OBJDIR)/, $(SOURCES:.c=.o) )
+
+OBJS = $(SOURCES:.c=.o)
+
+DBG_DIR = debug
+DBG_EXE = $(DBG_DIR)/$(EXECUTABLE)
+DBG_OBJS = $(addprefix $(DBG_DIR)/, $(OBJS))
+
+REL_DIR = release
+REL_EXE = $(REL_DIR)/$(EXECUTABLE)
+REL_OBJS = $(addprefix $(REL_DIR)/, $(OBJS))
 
 CC = gcc
+
 CFLAGS =\
 	-c\
 	-std=c99\
@@ -23,22 +28,43 @@ CFLAGS =\
 	-Wpedantic\
 	-fsanitize=undefined\
 	-fsanitize-undefined-trap-on-error\
-	-g
+
+CFLAGS_DBG =\
+	-g3\
+	-O0
+
+CFLAGS_REL =\
+	-O1\
+	-DNDEBUG
 
 LD = gcc
+
 LDFLAGS =\
 	-fsanitize=undefined\
 	-fsanitize-undefined-trap-on-error
 
-all: $(BINDIR)/$(EXECUTABLE)
+all: prepare release
 
-$(OBJDIR)/%.o: %.c
-	mkdir -p $(@D)
-	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
+debug: $(DBG_EXE)
 
-$(BINDIR)/$(EXECUTABLE): $(OBJS)
-	mkdir -p $(BINDIR)
-	$(LD) $(LDFLAGS) $^ -o $@
+$(DBG_EXE): $(DBG_OBJS)
+	$(LD) $(LDFLAGS) -o $(DBG_EXE) $^
+
+$(DBG_DIR)/%.o: %.c
+	@mkdir -p $(@D)
+	$(CC) $(INCLUDES) $(CFLAGS) $(CFLAGS_DBG) -o $@ $<
+
+release: $(REL_EXE)
+
+$(REL_EXE): $(REL_OBJS)
+	$(LD) $(LDFLAGS) -o $(REL_EXE) $^
+
+$(REL_DIR)/%.o: %.c
+	@mkdir -p $(@D)
+	$(CC) $(INCLUDES) $(CFLAGS) $(CFLAGS_REL) -o $@ $<
+
+prepare:
+	@mkdir -p $(DBG_DIR) $(REL_DIR)
 
 clean:
-	rm -f $(OBJS) $(BINDIR)/$(EXECUTABLE)
+	rm -rf $(REL_DIR)/* $(DBG_DIR)/*
