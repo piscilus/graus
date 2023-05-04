@@ -11,20 +11,25 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <stdint.h>
+#include <limits.h> /* INT_MAX */
+#include <stdint.h> /* uintptr_t */
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
-#define VERSION ("0.1.0-alpha.1")
+#define PROGRAM "graus"
+#define VERSION "0.1.0-alpha.2"
 
-#define LEN_MIN     (1U)
-#define LEN_MAX     (100U)
-#define LEN_DEFAULT (10U)
+#define XSTR(s) STR(s)
+#define STR(s) #s
 
-#define NUM_MIN     (1U)
-#define NUM_MAX     (100U)
-#define NUM_DEFAULT (1U)
+#define LEN_MIN     1
+#define LEN_MAX     100
+#define LEN_DEFAULT 10
+
+#define NUM_MIN     1
+#define NUM_MAX     100
+#define NUM_DEFAULT 1
 
 static const struct cag_option options[] =
 {
@@ -33,14 +38,16 @@ static const struct cag_option options[] =
         .access_letters = "l",
         .access_name = "length",
         .value_name = "LENGTH",
-        .description = "Length of string(s) (1..100) (default: 10)"
+        .description =  "Length of string(s) (" XSTR(NUM_MIN) ".." XSTR(NUM_MAX)
+                        ") (default: " XSTR(NUM_DEFAULT) ")"
     },
     {
         .identifier = 'n',
         .access_letters = "n",
         .access_name = "number",
         .value_name = "NUMBER",
-        .description = "Number of strings to be generated (1..100) (default: 1)"
+        .description = "Number of strings to be generated (" XSTR(LEN_MIN) ".."
+                        XSTR(LEN_MAX) ") (default: " XSTR(LEN_DEFAULT) ")"
     },
     {
         .identifier = 'h',
@@ -65,72 +72,12 @@ const char characters[] =
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
 };
 
-int
-arg_to_uint(const char* arg_raw, unsigned int* arg, unsigned int min, unsigned int max);
 
-int
-main(int argc, char *argv[])
-{
-    char identifier;
-    uintptr_t seed = (uintptr_t)&identifier;
-    cag_option_context context;
-    unsigned int length = LEN_DEFAULT;
-    unsigned int number = NUM_DEFAULT;
-    const char* arg_raw;
-
-    cag_option_prepare(&context, options, CAG_ARRAY_SIZE(options), argc, argv);
-    while (cag_option_fetch(&context))
-    {
-        identifier = cag_option_get(&context);
-        switch (identifier)
-        {
-            case 'l':
-                arg_raw = cag_option_get_value(&context);
-                if (!arg_to_uint(arg_raw, &length, LEN_MIN, LEN_MAX))
-                {
-                    printf("Length must be in range %u to %u!\n", LEN_MIN, LEN_MAX);
-                    return EXIT_FAILURE;
-                }
-                break;
-            case 'n':
-                arg_raw = cag_option_get_value(&context);
-                if (!arg_to_uint(arg_raw, &number, NUM_MIN, NUM_MAX))
-                {
-                    printf("Number of strings must be in range %u to %u!\n", NUM_MIN, NUM_MAX);
-                    return EXIT_FAILURE;
-                }
-                break;
-            case 'v':
-                printf("GRAUS %s\n", VERSION);
-                return EXIT_SUCCESS;
-            case 'h':
-                printf("Usage: graus [OPTION]...\n");
-                printf("GRAUS - A Generator for Random Alphanumeric Uppercase Strings.\n\n");
-                cag_option_print(options, CAG_ARRAY_SIZE(options), stdout);
-                printf("\nThis program generates a number of pseudo random alphanumeric uppercase strings.\n");
-                return EXIT_SUCCESS;
-            default:
-                printf("Usage: graus [OPTION]...\n");
-                return EXIT_FAILURE;
-        }
-    }
-
-    for (unsigned int n = 0U; n < number; n++)
-    {
-        srand(time(NULL) + (unsigned int)seed + n);
-        for (unsigned int l = 0; l < length; l++)
-        {
-            int random_variable = rand();
-            putchar(characters[(unsigned int)random_variable % (sizeof(characters)/sizeof(char))]);
-        }
-        putchar('\n');
-    }
-
-    return EXIT_SUCCESS;
-}
-
-int
-arg_to_uint(const char* arg_raw, unsigned int* arg, unsigned int min, unsigned int max)
+static int
+arg_to_int( const char* arg_raw,
+            int* arg,
+            int min,
+            int max)
 {
     assert(arg_raw != NULL);
     assert(arg != NULL);
@@ -145,17 +92,83 @@ arg_to_uint(const char* arg_raw, unsigned int* arg, unsigned int min, unsigned i
         return 0;
     }
 
-    if (tmp < 0)
+    if ((tmp < 0) || (tmp > INT_MAX))
     {
         return 0;
     }
 
-    if (((unsigned int)tmp < min) || (((unsigned int)tmp > max)))
+    if (((int)tmp < min) || (((int)tmp > max)))
     {
         return 0;
     }
 
-    *arg = (unsigned int) tmp;
+    *arg = (int) tmp;
 
     return 1;
+}
+
+int
+main(int argc, char** argv)
+{
+    char identifier;
+    uintptr_t seed = (uintptr_t)&identifier;
+    cag_option_context context;
+    int length = LEN_DEFAULT;
+    int number = NUM_DEFAULT;
+    const char* arg_raw;
+
+    cag_option_prepare(&context, options, CAG_ARRAY_SIZE(options), argc, argv);
+    while (cag_option_fetch(&context))
+    {
+        identifier = cag_option_get(&context);
+        switch (identifier)
+        {
+            case 'l':
+                arg_raw = cag_option_get_value(&context);
+                if (!arg_to_int(arg_raw, &length, LEN_MIN, LEN_MAX))
+                {
+                    fputs(
+                        PROGRAM ": not a valid length\n"
+                        "Try: '" PROGRAM " --help'\n", stderr);
+                    exit(EXIT_SUCCESS);
+                }
+                break;
+            case 'n':
+                arg_raw = cag_option_get_value(&context);
+                if (!arg_to_int(arg_raw, &number, NUM_MIN, NUM_MAX))
+                {
+                    fputs(
+                        PROGRAM ": not a valid number of strings\n"
+                        "Try: '" PROGRAM " --help'\n", stderr);
+                    exit(EXIT_SUCCESS);
+                }
+                break;
+            case 'v':
+                fputs(PROGRAM " version " VERSION "\n", stdout);
+                exit(EXIT_SUCCESS);
+            case 'h':
+                fputs("Usage: " PROGRAM " [options]\n", stdout);
+                cag_option_print(options, CAG_ARRAY_SIZE(options), stdout);
+                exit(EXIT_SUCCESS);
+            default:
+                fputs(
+                    PROGRAM ": invalid option\n"
+                    "Try: '" PROGRAM " --help'\n", stderr);
+                exit(EXIT_FAILURE);
+        }
+    }
+
+    for (int n = 0; n < number; n++)
+    {
+        srand(time(NULL) + (unsigned int)seed + (unsigned int)n);
+        for (int l = 0; l < length; l++)
+        {
+            int random_variable = rand();
+            putchar(characters[ (unsigned int)random_variable %
+                                (sizeof(characters)/sizeof(char)) ]);
+        }
+        putchar('\n');
+    }
+
+    return EXIT_SUCCESS;
 }
